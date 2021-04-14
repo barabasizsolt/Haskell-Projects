@@ -1,4 +1,4 @@
---Huffman kodolas
+--Huffman kódolás.
 import Data.List ( (\\), group, isPrefixOf, sort, sortOn )
 import Data.Ord ()
 import System.IO () 
@@ -6,18 +6,18 @@ import System.IO ()
 type Frequency = Int
 type LetterSum = (String, Frequency)
 
---Betugyakorisag.
+--betűgyakoriság meghatározása.
 countLetters :: String -> [LetterSum]
 countLetters str = map (\x -> ([head x], length x)) $ group $ sort str
 
---Kezdoallapot.
---A fa abrazolasahoz az alabbi tipusokat hasznaljuk.
+--Kezdőállapot meghatározása.
+--A Huffman fa ábrázolása az alábbi típusok segítségével.
 type Id    = Int
 type Node  = (Id, LetterSum)
 type Label = String
 type Edge  = (Id, Id, Label)
 
---Az algoritmus kezdoallapota.
+--Az algoritmus kezdőállapota.
 type State = ([Node], [Edge], [Node])
 startState :: [LetterSum] -> State
 startState ltSum = (aux tmpLs 1, [], [])
@@ -28,7 +28,7 @@ startState ltSum = (aux tmpLs 1, [], [])
 
         tmpLs = sortOn snd ltSum 
 
---Kovetkezo azonosito eloallitasa.
+--Követekező azonosító előállítása.
 nextId :: State -> Id
 nextId (ls, _, _) = aux ls + 1
     where
@@ -38,7 +38,7 @@ nextId (ls, _, _) = aux ls + 1
             | fst x > aux xs = fst x
             | otherwise = aux xs
 
---Uj csucs letrehozasa.
+--Új csúcs létrehozása.
 createNode :: Id -> Node -> Node -> Node
 createNode id nd1 nd2 = (id, (x1 ++ x2, y1 + y2))
     where
@@ -47,30 +47,30 @@ createNode id nd1 nd2 = (id, (x1 ++ x2, y1 + y2))
         y1 = snd $ snd nd1
         y2 = snd $ snd nd2
 
---Uj csucs beszurasa.
+--Új csúcs beszúrása.
 insertNode :: Node -> [Node] -> [Node]
 insertNode nd ls = sortOn (\ (x, y) -> snd y) tmp
     where 
         tmp = nd : ls
 
---Az algoritmus egy lepese.
+--Az algoritmus egy lépése
 step :: State -> State
 step ([], _, _) = error "Ures csucslista"
 step ([x], k, ls) = ([], k, x:ls)
 step (x:y:xs, e, ls) = (tmp, edgeX:edgeY:e, x:y:ls)
     where
-        --uj csomopont letrehozasa.
+        --Új csomópont létrehozása.
         z = createNode id x y 
         id = nextId (x:y:xs, e, ls)
 
-        --elek iranyanak megadasa.
+        --Élek irányának megadása.
         edgeX = (fst x, id, "0") --x -> z
         edgeY = (fst y, id, "1") --y -> z
 
-        --uj csomopont behelyezes a feldolgoztlanok koze.
+        --Új csomópont behelyezése a feldolgozatlanok közé.
         tmp = insertNode z xs
 
---Teljes feldolgozas.
+--Teljes feldolgozás.
 type ProcessedState = ([Edge], [Node])
 steps :: State -> ProcessedState
 steps state
@@ -79,7 +79,7 @@ steps state
     where
         (ls1, ed, ls2) = step state
 
---Van-e szulo?
+--Van-e szülő?
 hasParent :: Id -> [Edge] -> Bool
 hasParent _ [] = False
 hasParent id (x:xs)
@@ -89,7 +89,7 @@ hasParent id (x:xs)
         aux :: Edge -> Id
         aux (id, _, _) = id
 
---Szulohoz vezeto el.
+--Szülőhöz vezető él.
 findEdgeToParent :: Id -> [Edge] -> Edge
 findEdgeToParent _ [] = error "Nincs szulo"
 findEdgeToParent id (x:xs)
@@ -99,7 +99,7 @@ findEdgeToParent id (x:xs)
         aux :: Edge -> Id
         aux (id, _, _) = id
 
---Egy karakter kodja.
+--Egy karakter kódja.
 getCodeForOne :: ProcessedState -> Id -> String
 getCodeForOne pSt id
     | hasParent id tmp = getCodeForOne pSt pId ++ lb --meghivom az apa id-ra.
@@ -108,13 +108,12 @@ getCodeForOne pSt id
         tmp = fst pSt
         (mId, pId, lb) = findEdgeToParent id tmp
 
---Teljes kodtabla.
+--Teljes kódtábla.
 type CodingTable = [(Char,String)]
 
 getCodingTable :: ProcessedState -> CodingTable
 getCodingTable pSt = aux tmp
     where
-        --az egykarakteresek kiszurese.
         tmp = filter (\(x,y) -> length (fst y) == 1 ) (snd pSt)
 
         aux :: [Node] -> CodingTable
@@ -125,14 +124,13 @@ getCodingTable pSt = aux tmp
                 ch = head $ fst $ snd x
                 code = getCodeForOne pSt id
         
---Kereses a kodtablaban.
+--Keresés a kódtáblában.
 findCode :: Char -> CodingTable -> String
 findCode ch (x:xs) 
     | ch == fst x = snd x 
     | otherwise = findCode ch xs
 
---Kodolas.
---Visszaadja a CodingTable-t is.
+--Kódolás.
 encode :: String -> (String, CodingTable)
 encode str = (aux str, tmp)
     where
@@ -142,14 +140,13 @@ encode str = (aux str, tmp)
         aux [] = []
         aux (x:xs) = findCode x tmp ++ aux xs
 
---Kereses a kodtablaban (folytatas).
+--Kereses a kódtáblában (folytatás).
 findChar :: String -> CodingTable -> Char
 findChar code (x:xs) 
     | code == snd x = fst x 
     | otherwise = findChar code xs
 
---Dekodolas.
---Ismerni kell a CodingTable-t.
+--Dekódolás.
 decode :: String -> CodingTable -> String
 decode str cTbl 
     | null str = []
@@ -163,10 +160,6 @@ decode str cTbl
         pfx = aux cTbl
         ch = findChar pfx cTbl 
     
---Meghivasok:
---Kodolas: fst $ encode "Sapientia"
---Dekodolas: decode (fst $ encode "Sapientia") (snd $ encode "Sapientia") -> 3. para a CodingTable
-
 main :: IO ()
 main = do
     putStrLn "Olvasson be egy karakterlancot: "
